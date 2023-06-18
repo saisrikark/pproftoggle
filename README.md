@@ -12,7 +12,8 @@ run pprof without restarting your application
 
 ## Description
 
-Visit [pprof](https://github.com/google/pprof) for more information.
+pprof is a tool to view resources used by go applications.
+Visit [pprof](https://github.com/google/pprof) for more information about it.
 
 
 ## Features
