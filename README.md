@@ -3,7 +3,6 @@ run pprof without restarting your application
 
 ## Table of Contents
 
-- [Project Title](#project-title)
 - [Description](#description)
 - [Features](#features)
 - [Installation](#installation)
