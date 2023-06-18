@@ -12,7 +12,7 @@ run pprof without restarting your application
 
 ## Description
 
-Visit [OpenAI](https://openai.com) for more information.
+Visit [pprof](https://github.com/google/pprof) for more information.
 
 
 ## Features
