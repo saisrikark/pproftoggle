@@ -12,8 +12,8 @@ run pprof without restarting your application
 
 ## Description
 
-[their website][1] is a tool to understand resources usages in go applications.
-[1]: https://github.com/google/pprof
+Visit [OpenAI](https://openai.com) for more information.
+
 
 ## Features
 
