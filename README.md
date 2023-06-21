@@ -21,11 +21,8 @@ dynamic-pprof provides ways to toggle the profiling without causing a restart to
 
 Toggle using
 - Environment Variable
+    - Something
 - Yaml/JSON file
-
-## Installation
-
-TODO
 
 ## Usage
 
