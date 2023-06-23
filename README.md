@@ -1,4 +1,4 @@
-# dynamic-pprof - in development
+# pproftoggle - in development
 run pprof without restarting your application
 
 ## Table of Contents
@@ -14,7 +14,7 @@ run pprof without restarting your application
 
 [pprof](https://github.com/google/pprof) is a tool to view resources used by go applications. <br>
 [pprof](https://github.com/google/pprof) can be run by hosting a http server and querying it to retrieve profling data. <br>
-dynamic-pprof provides ways to toggle the profiling without causing a restart to the application. <br>
+pproftoggle provides ways to toggle the profiling without causing a restart to the application. <br>
 
 ## Features
 
