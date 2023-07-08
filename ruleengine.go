@@ -12,7 +12,7 @@ type status struct {
 	rulesMatched []Rule
 }
 
-func hasMatched(rules []Rule) (status, error) {
+func getStatus(rules []Rule) (status, error) {
 	var st status
 	st.rulesMatched = make([]Rule, 0)
 
