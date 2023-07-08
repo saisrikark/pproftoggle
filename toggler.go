@@ -16,6 +16,7 @@ type toggler struct {
 
 // NewTogger returns an instance of the toggler
 // used to perform pprof toggle operations
+// pollInterval is the wait time between the end of a match and the beggining of a new one
 func NewToggler(pollInterval time.Duration) *toggler {
 	httpServer := &http.Server{
 		Addr: ":8080",
