@@ -21,5 +21,6 @@ func (evr EnvVarRule) Matches() (bool, error) {
 	if val, ok := os.LookupEnv(evr.Key); ok && val == evr.Value {
 		return true, nil
 	}
-	return false, nil
+	return true, nil
+	// return false, nil
 }

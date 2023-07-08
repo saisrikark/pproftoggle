@@ -3,8 +3,11 @@ package pproftoggle
 import (
 	"context"
 	"net/http"
+	"os"
 	"sync/atomic"
 	"time"
+
+	"log"
 
 	"github.com/pkg/errors"
 )
@@ -13,6 +16,7 @@ type toggler struct {
 	pollInterval time.Duration
 	ppfs         pprofServer
 	rules        []Rule
+	logger       *log.Logger
 	canToggle    *atomic.Bool
 	shouldBeUp   *atomic.Bool
 	toggleChan   chan (bool)
@@ -33,6 +37,8 @@ type Config struct {
 	// we decide whether to start or stop the pprof server
 	// executed in same order specified
 	Rules []Rule
+	// Logger
+	Logger *log.Logger
 }
 
 // NewToggler returns an instance of the toggler
@@ -50,6 +56,10 @@ func NewToggler(cfg Config) (*toggler, error) {
 		panic("no rules configured")
 	}
 
+	if cfg.Logger == nil {
+		cfg.Logger = log.New(os.Stdout, "pproftoggle ", 0)
+	}
+
 	pprofServer, err := newpprofServer(pprofServerConfig{
 		Address:        cfg.Address,
 		EndpointPrefix: cfg.EndpointPrefix,
@@ -58,11 +68,15 @@ func NewToggler(cfg Config) (*toggler, error) {
 		return nil, err
 	}
 
+	canToggle := &atomic.Bool{}
+	canToggle.Swap(true)
+
 	return &toggler{
 		pollInterval: cfg.PollInterval,
 		ppfs:         pprofServer,
 		rules:        cfg.Rules,
-		canToggle:    &atomic.Bool{},
+		logger:       cfg.Logger,
+		canToggle:    canToggle,
 		shouldBeUp:   &atomic.Bool{},
 		toggleChan:   make(chan bool, 1),
 	}, nil
@@ -77,57 +91,61 @@ func (pt *toggler) Serve(ctx context.Context) error {
 	timer := time.NewTimer(pt.pollInterval)
 	errs := make(chan error, 1)
 
+	asyncStart := func() {
+		pt.logger.Println("starting pprof server")
+		if err := pt.ppfs.start(); err != nil && err != http.ErrServerClosed {
+			errs <- errors.Wrap(err, "unable to start pprof server")
+		}
+	}
+
+	asyncStop := func() {
+		pt.logger.Println("stopping pprof server")
+		if err := pt.ppfs.stop(); err != nil {
+			errs <- errors.Wrap(err, "unable to stop pprof server")
+		}
+	}
+
+	stop := func() error {
+		pt.logger.Println("stopping pprof server")
+		if err := pt.ppfs.stop(); err != nil {
+			return errors.Wrap(err, "unable to stop pprof server")
+		}
+		return nil
+	}
+
 	for {
 		select {
 		case err := <-errs:
 			if pt.IsUp(ctx) {
-				if err := pt.ppfs.stop(); err != nil {
-					return errors.Wrap(err, "unable to stop pprof server")
-				}
+				stop()
 			}
 			return err
 		case <-ctx.Done():
 			if pt.IsUp(ctx) {
-				if err := pt.ppfs.stop(); err != nil {
-					return errors.Wrap(err, "unable to stop pprof server")
-				}
+				stop()
 			}
 			exit = true
 		case <-timer.C:
+			pt.logger.Println("performing rule check")
 			status, err := getStatus(pt.rules)
 			if err != nil {
+				pt.logger.Printf("error while trying to fetch status %s", err.Error())
 				return err
 			}
 			if pt.canToggle.Load() {
 				if status.hasMatched && !pt.IsUp(ctx) {
-					go func() {
-						if err = pt.ppfs.start(); err != nil && err != http.ErrServerClosed {
-							errs <- errors.Wrap(err, "unable to start pprof server")
-						}
-					}()
+					go asyncStart()
 				} else if !status.hasMatched && pt.IsUp(ctx) {
-					go func() {
-						if err = pt.ppfs.stop(); err != nil {
-							errs <- errors.Wrap(err, "unable to stop pprof server")
-						}
-					}()
+					go asyncStop()
 				}
 			}
 			timer = time.NewTimer(pt.pollInterval)
 		case <-pt.toggleChan:
 			if !pt.canToggle.Load() {
 				if pt.shouldBeUp.Load() && !pt.IsUp(ctx) {
-					go func() {
-						if err := pt.ppfs.start(); err != nil && err != http.ErrServerClosed {
-							errs <- errors.Wrap(err, "unable to start pprof server")
-						}
-					}()
+					asyncStart()
 				} else if !pt.shouldBeUp.Load() && !pt.IsUp(ctx) {
-					go func() {
-						if err := pt.ppfs.stop(); err != nil {
-							errs <- errors.Wrap(err, "unable to stop pprof server")
-						}
-					}()
+					asyncStop()
 				}
 			}
 		}

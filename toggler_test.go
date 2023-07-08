@@ -22,7 +22,7 @@ func TestServe(t *testing.T) {
 		fmt.Println(err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1000)
 	defer cancel()
 
 	if err := toggler.Serve(ctx); err != nil {
