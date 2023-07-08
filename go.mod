@@ -1,3 +1,3 @@
-module github.com/saisrikark/dynamic-pprof
+module github.com/saisrikark/pproftoggle
 
 go 1.19
