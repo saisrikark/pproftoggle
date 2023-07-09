@@ -3,6 +3,7 @@ package pproftoggle_test
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
@@ -11,6 +12,9 @@ import (
 
 func TestServe(t *testing.T) {
 	toggler, err := pproftoggle.NewToggler(pproftoggle.Config{
+		HttpServer: &http.Server{
+			Addr: ":8080",
+		},
 		Rules: []pproftoggle.Rule{
 			pproftoggle.EnvVarRule{
 				Key:   "abcd",

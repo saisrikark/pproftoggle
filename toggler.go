@@ -23,9 +23,6 @@ type toggler struct {
 }
 
 type Config struct {
-	// Address at which to host the pprof server
-	// defaults to ":8080"
-	Address string
 	// EndpointPrefix is used to extend the path to access pprof
 	// by default it is served at /debug/pprof/...
 	// if given as "/extra" endpoint it extended to /extra/debug/pprof/...
@@ -37,8 +34,13 @@ type Config struct {
 	// we decide whether to start or stop the pprof server
 	// executed in same order specified
 	Rules []Rule
-	// Logger
+	// Logger is used to print log statements
+	// is not specified log.Logger is used
 	Logger *log.Logger
+	// HttpServer is the server used to host pprof
+	// any handler assigned is overridden
+	// panics is nil
+	HttpServer *http.Server
 }
 
 // NewToggler returns an instance of the toggler
@@ -47,13 +49,16 @@ type Config struct {
 // the end of a match and the beggining of a new one
 // paincs if no rules are configured
 func NewToggler(cfg Config) (*toggler, error) {
+	if cfg.Rules == nil || len(cfg.Rules) == 0 {
+		panic("no rules configured")
+	}
+
+	if cfg.HttpServer == nil {
+		panic("http server not specified")
+	}
 
 	if cfg.PollInterval < time.Second {
 		cfg.PollInterval = time.Second
-	}
-
-	if cfg.Rules == nil || len(cfg.Rules) == 0 {
-		panic("no rules configured")
 	}
 
 	if cfg.Logger == nil {
@@ -61,7 +66,7 @@ func NewToggler(cfg Config) (*toggler, error) {
 	}
 
 	pprofServer, err := newpprofServer(pprofServerConfig{
-		Address:        cfg.Address,
+		HttpServer:     cfg.HttpServer,
 		EndpointPrefix: cfg.EndpointPrefix,
 	})
 	if err != nil {
