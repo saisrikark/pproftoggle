@@ -1,4 +1,4 @@
-.PHONY: fmt vet test
+.PHONY: fmt vet test tidy vendor
 
 GOCMD := go
 GOMOD := $(GOCMD) mod
