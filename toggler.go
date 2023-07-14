@@ -43,6 +43,11 @@ type Config struct {
 	HttpServer *http.Server
 }
 
+type status struct {
+	hasMatched   bool
+	rulesMatched []Rule
+}
+
 // NewToggler returns an instance of the toggler
 // used to perform pprof toggle operations
 // pollInterval is the wait time between
@@ -93,6 +98,7 @@ func NewToggler(cfg Config) (*toggler, error) {
 // or when an error is hit
 func (pt *toggler) Serve(ctx context.Context) error {
 	errs := make(chan error, 1)
+	tc := time.NewTicker(pt.pollInterval)
 
 	start := func() {
 		pt.logger.Println("starting pprof server")
@@ -109,25 +115,24 @@ func (pt *toggler) Serve(ctx context.Context) error {
 	}
 
 	for {
-		status, err := getStatus(pt.rules)
-		if err != nil {
-			pt.logger.Printf("error while trying to fetch status %s", err.Error())
+		select {
+		case <-ctx.Done():
+			return nil
+		case err := <-errs:
 			return err
+		case <-tc.C:
+			ok, err := pt.hasMatched()
+			if err != nil {
+				pt.logger.Printf("error while trying to fetch status %s", err.Error())
+				return err
+			}
+			if ok && !pt.IsUp(ctx) {
+				go start()
+			} else if !ok && pt.IsUp(ctx) {
+				stop()
+			}
 		}
-		if status.hasMatched {
-			pt.logger.Println("matched")
-		} else {
-			pt.logger.Println("not matched")
-		}
-		if status.hasMatched && !pt.IsUp(ctx) {
-			go start()
-		} else if !status.hasMatched && pt.IsUp(ctx) {
-			stop()
-		}
-		time.Sleep(pt.pollInterval)
 	}
-
-	return nil
 }
 
 // IsUp returns the running status of the server hosting pprof endpoints
@@ -135,19 +140,20 @@ func (pt *toggler) IsUp(ctx context.Context) bool {
 	return pt.ppfs.IsRunning()
 }
 
-func getStatus(rules []Rule) (status, error) {
-	var st status
-	st.rulesMatched = make([]Rule, 0)
+func (pt *toggler) hasMatched() (bool, error) {
+	var st = status{
+		rulesMatched: make([]Rule, 0),
+	}
 
-	for _, rule := range rules {
+	for _, rule := range pt.rules {
 		matches, err := rule.Matches()
 		if err != nil {
-			return st, err
+			return false, err
 		} else if matches {
 			st.hasMatched = true
 			st.rulesMatched = append(st.rulesMatched, rule)
 		}
 	}
 
-	return st, nil
+	return st.hasMatched, nil
 }

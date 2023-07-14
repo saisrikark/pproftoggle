@@ -6,8 +6,3 @@ type Rule interface {
 	// Matches determines whether the
 	Matches() (bool, error)
 }
-
-type status struct {
-	hasMatched   bool
-	rulesMatched []Rule
-}
