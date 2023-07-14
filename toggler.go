@@ -96,7 +96,7 @@ func (pt *toggler) Serve(ctx context.Context) error {
 
 	start := func() {
 		pt.logger.Println("starting pprof server")
-		if err := pt.ppfs.Listen(); err != nil && err != http.ErrServerClosed {
+		if err := pt.ppfs.Listen(context.Background()); err != nil && err != http.ErrServerClosed {
 			errs <- errors.Wrap(err, "unable to start pprof server")
 		}
 	}

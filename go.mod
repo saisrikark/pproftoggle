@@ -3,6 +3,8 @@ module github.com/saisrikark/pproftoggle
 go 1.19
 
 require (
+	github.com/carlmjohnson/requests v0.23.4
 	github.com/pkg/errors v0.9.1
-	golang.org/x/exp v0.0.0-20230626212559-97b1e661b5df
 )
+
+require golang.org/x/net v0.7.0 // indirect

@@ -1,6 +1,8 @@
 package pproftoggle
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/pprof"
 	"sync/atomic"
@@ -24,6 +26,10 @@ func NewServer(cfg ServerConfig) (*pprofServer, error) {
 	var prefix = cfg.EndpointPrefix + pprofPrefix
 	var mux = http.NewServeMux()
 
+	if cfg.HttpServer == nil {
+		return nil, errors.New("http server not configured")
+	}
+
 	mux.HandleFunc(prefix, pprof.Index)
 	mux.HandleFunc(prefix+"cmdline", pprof.Cmdline)
 	mux.HandleFunc(prefix+"profile", pprof.Profile)
@@ -37,7 +43,9 @@ func NewServer(cfg ServerConfig) (*pprofServer, error) {
 	}, nil
 }
 
-func (ppfs *pprofServer) Listen() error {
+func (ppfs *pprofServer) Listen(ctx context.Context) error {
+	var errs chan error = make(chan error, 1)
+
 	if ppfs.IsRunning() {
 		return nil
 	}
@@ -45,7 +53,20 @@ func (ppfs *pprofServer) Listen() error {
 	ppfs.isUp.Store(true)
 	defer ppfs.isUp.Store(false)
 
-	return ppfs.httpServer.ListenAndServe()
+	go func() {
+		if err := ppfs.httpServer.ListenAndServe(); err != nil {
+			errs <- err
+		}
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case err := <-errs:
+			return err
+		}
+	}
 }
 
 func (ppfs *pprofServer) Shutdown() error {

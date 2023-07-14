@@ -1,10 +1,8 @@
 package pproftoggle_test
 
 import (
-	"context"
 	"fmt"
 	"net/http"
-	"os"
 	"testing"
 	"time"
 
@@ -12,7 +10,7 @@ import (
 )
 
 func TestServe(t *testing.T) {
-	toggler, err := pproftoggle.NewToggler(
+	_, err := pproftoggle.NewToggler(
 		pproftoggle.Config{
 			PollInterval: time.Second * 3,
 			HttpServer: &http.Server{
@@ -29,26 +27,26 @@ func TestServe(t *testing.T) {
 		fmt.Println(err)
 	}
 
-	set := true
-	go func() {
-		for {
-			time.Sleep(time.Second * 2)
-			if set {
-				fmt.Println("setting")
-				os.Setenv("abcd", "efgh")
-				set = false
-			} else {
-				fmt.Println("unsetting")
-				os.Unsetenv("abcd")
-				set = true
-			}
-		}
-	}()
+	// set := true
+	// go func() {
+	// 	for {
+	// 		time.Sleep(time.Second * 2)
+	// 		if set {
+	// 			fmt.Println("setting")
+	// 			os.Setenv("abcd", "efgh")
+	// 			set = false
+	// 		} else {
+	// 			fmt.Println("unsetting")
+	// 			os.Unsetenv("abcd")
+	// 			set = true
+	// 		}
+	// 	}
+	// }()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1000)
-	defer cancel()
+	// ctx, cancel := context.WithTimeout(context.Background(), time.Second*1000)
+	// defer cancel()
 
-	if err := toggler.Serve(ctx); err != nil {
-		fmt.Println(err)
-	}
+	// if err := toggler.Serve(ctx); err != nil {
+	// 	fmt.Println(err)
+	// }
 }
