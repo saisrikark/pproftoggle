@@ -14,7 +14,7 @@ import (
 
 type toggler struct {
 	pollInterval time.Duration
-	ppfs         pprofServer
+	ppfs         *pprofServer
 	rules        []Rule
 	logger       *log.Logger
 	canToggle    *atomic.Bool
@@ -34,9 +34,9 @@ type Config struct {
 	// we decide whether to start or stop the pprof server
 	// executed in same order specified
 	Rules []Rule
-	// Logger is used to print log statements
+	// ErrLogger is used to print error log statements
 	// is not specified log.Logger is used
-	Logger *log.Logger
+	ErrLogger *log.Logger
 	// HttpServer is the server used to host pprof
 	// any handler assigned is overridden
 	// panics is nil
@@ -61,11 +61,11 @@ func NewToggler(cfg Config) (*toggler, error) {
 		cfg.PollInterval = time.Second
 	}
 
-	if cfg.Logger == nil {
-		cfg.Logger = log.New(os.Stdout, "pproftoggle ", 0)
+	if cfg.ErrLogger == nil {
+		cfg.ErrLogger = log.New(os.Stdout, "pproftoggle ", 0)
 	}
 
-	pprofServer, err := newpprofServer(pprofServerConfig{
+	pprofServer, err := NewServer(ServerConfig{
 		HttpServer:     cfg.HttpServer,
 		EndpointPrefix: cfg.EndpointPrefix,
 	})
@@ -80,7 +80,7 @@ func NewToggler(cfg Config) (*toggler, error) {
 		pollInterval: cfg.PollInterval,
 		ppfs:         pprofServer,
 		rules:        cfg.Rules,
-		logger:       cfg.Logger,
+		logger:       cfg.ErrLogger,
 		canToggle:    canToggle,
 		shouldBeUp:   &atomic.Bool{},
 		toggleChan:   make(chan bool, 1),
@@ -92,57 +92,39 @@ func NewToggler(cfg Config) (*toggler, error) {
 // this is a blocking operation that return when ctx is cancelled
 // or when an error is hit
 func (pt *toggler) Serve(ctx context.Context) error {
-	exit := false
-	timer := time.NewTimer(pt.pollInterval)
 	errs := make(chan error, 1)
 
 	start := func() {
 		pt.logger.Println("starting pprof server")
-		if err := pt.ppfs.start(); err != nil && err != http.ErrServerClosed {
+		if err := pt.ppfs.Listen(); err != nil && err != http.ErrServerClosed {
 			errs <- errors.Wrap(err, "unable to start pprof server")
 		}
 	}
 
 	stop := func() {
 		pt.logger.Println("stopping pprof server")
-		if err := pt.ppfs.stop(); err != nil {
+		if err := pt.ppfs.Shutdown(); err != nil {
 			errs <- errors.Wrap(err, "unable to stop pprof server")
 		}
 	}
 
 	for {
-		select {
-		case err := <-errs:
-			if pt.IsUp(ctx) {
-				stop()
-			}
+		status, err := getStatus(pt.rules)
+		if err != nil {
+			pt.logger.Printf("error while trying to fetch status %s", err.Error())
 			return err
-		case <-ctx.Done():
-			if pt.IsUp(ctx) {
-				stop()
-			}
-			exit = true
-		case <-timer.C:
-			status, err := getStatus(pt.rules)
-			if err != nil {
-				pt.logger.Printf("error while trying to fetch status %s", err.Error())
-				return err
-			}
-			if status.hasMatched {
-				pt.logger.Println("matched")
-			} else {
-				pt.logger.Println("not matched")
-			}
-			if status.hasMatched && !pt.IsUp(ctx) {
-				go start()
-			} else if !status.hasMatched && pt.IsUp(ctx) {
-				stop()
-			}
-			timer = time.NewTimer(pt.pollInterval)
 		}
-		if exit {
-			break
+		if status.hasMatched {
+			pt.logger.Println("matched")
+		} else {
+			pt.logger.Println("not matched")
 		}
+		if status.hasMatched && !pt.IsUp(ctx) {
+			go start()
+		} else if !status.hasMatched && pt.IsUp(ctx) {
+			stop()
+		}
+		time.Sleep(pt.pollInterval)
 	}
 
 	return nil
@@ -150,7 +132,7 @@ func (pt *toggler) Serve(ctx context.Context) error {
 
 // IsUp returns the running status of the server hosting pprof endpoints
 func (pt *toggler) IsUp(ctx context.Context) bool {
-	return pt.ppfs.isRunning()
+	return pt.ppfs.IsRunning()
 }
 
 func getStatus(rules []Rule) (status, error) {
