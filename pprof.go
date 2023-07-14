@@ -62,7 +62,7 @@ func (ppfs *pprofServer) Listen(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return nil
+			return ppfs.httpServer.Close()
 		case err := <-errs:
 			return err
 		}

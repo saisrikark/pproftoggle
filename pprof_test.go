@@ -51,12 +51,13 @@ func TestListen(t *testing.T) {
 			HttpServer: &http.Server{Addr: ":" + PORT},
 		})
 		if err != nil {
-			t.Errorf("unable to initialise new server")
+			t.Errorf("unable to initialise new server err:[%s]", err.Error())
 		}
 
-		ctx, _ := context.WithTimeout(context.Background(), time.Millisecond)
-		err = ppfs.Listen(ctx)
-		if err == nil {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+		defer cancel()
+
+		if err = ppfs.Listen(ctx); err == nil {
 			t.Errorf("serving requests at port should not possible as port [%s] is blocked", PORT)
 		} else {
 			t.Logf("as expected encountered error:[%s] while trying to server request on a blocked port", err.Error())
@@ -70,11 +71,11 @@ func TestListen(t *testing.T) {
 			HttpServer: &http.Server{Addr: ":" + PORT},
 		})
 		if err != nil {
-			t.Errorf("unable to initialise new server")
+			t.Errorf("unable to initialise new server err:[%s]", err.Error())
 		}
 
 		go func() {
-			if err = ppfs.Listen(ctx); err != nil {
+			if err = ppfs.Listen(ctx); err != nil && err != http.ErrServerClosed {
 				t.Errorf("unable to listen err:[%s]", err.Error())
 			}
 		}()
@@ -91,7 +92,7 @@ func TestListen(t *testing.T) {
 
 		resp := ""
 		if err := requests.URL(ENDDPOINT).BaseURL(BASE_URL).ToString(&resp).Fetch(context.Background()); err != nil {
-			t.Errorf("unable to fetch from /trace endpoint err:[%s]", err)
+			t.Errorf("unable to fetch from endpoint err:[%s]", err)
 		} else {
 			t.Logf("received a respose from the endpoint truncated resp\n[%s]", resp[0:30])
 		}
@@ -102,16 +103,18 @@ func TestListen(t *testing.T) {
 
 func TestShutdown(t *testing.T) {
 	t.Run("ServerMustShutdown", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
 		ppfs, err := pproftoggle.NewServer(pproftoggle.ServerConfig{
 			HttpServer: &http.Server{Addr: ":" + PORT},
 		})
 		if err != nil {
-			t.Errorf("unable to initialise new server")
+			t.Errorf("unable to initialise new server err:[%s]", err.Error())
 		}
 
 		go func() {
-			err := ppfs.Listen(context.Background())
-			if err != nil && err != http.ErrServerClosed {
+			if err := ppfs.Listen(ctx); err != nil && err != http.ErrServerClosed {
 				t.Errorf("errors while listening err:[%s]", err.Error())
 			}
 		}()
@@ -144,6 +147,9 @@ func TestShutdown(t *testing.T) {
 }
 
 func TestIsRunning(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	ppfs, err := pproftoggle.NewServer(pproftoggle.ServerConfig{
 		HttpServer: &http.Server{Addr: ":" + PORT},
 	})
@@ -152,8 +158,7 @@ func TestIsRunning(t *testing.T) {
 	}
 
 	go func() {
-		err := ppfs.Listen(context.Background())
-		if err != nil && err != http.ErrServerClosed {
+		if err := ppfs.Listen(ctx); err != nil && err != http.ErrServerClosed {
 			t.Errorf("errors while listening err:[%s]", err.Error())
 		}
 	}()
@@ -186,7 +191,7 @@ func TestIsRunning(t *testing.T) {
 	}
 
 	if err := requests.URL(ENDDPOINT).BaseURL(BASE_URL).ToString(&resp).Fetch(context.Background()); err == nil {
-		t.Errorf("received response from enpoint even after shutting down resp\n[%s]", resp[0:10])
+		t.Errorf("received response from endpoint even after shutting down resp\n[%s]", resp[0:10])
 	}
 
 	if isPortUsed(PORT) {
