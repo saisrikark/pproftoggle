@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/pprof"
+	"sync"
 	"sync/atomic"
 )
 
@@ -12,6 +13,7 @@ const (
 )
 
 type pprofServer struct {
+	mu         sync.Mutex
 	isUp       *atomic.Bool
 	httpServer *http.Server
 }
@@ -22,7 +24,7 @@ type pprofServerConfig struct {
 }
 
 func newpprofServer(cfg pprofServerConfig) (pprofServer, error) {
-	var prefix string
+	prefix := ""
 	mux := http.NewServeMux()
 
 	prefix = cfg.EndpointPrefix + DEFAULT_PPROF_DEBUG_PREFIX
@@ -31,8 +33,8 @@ func newpprofServer(cfg pprofServerConfig) (pprofServer, error) {
 	mux.HandleFunc(prefix+"profile", pprof.Profile)
 	mux.HandleFunc(prefix+"symbol", pprof.Symbol)
 	mux.HandleFunc(prefix+"trace", pprof.Trace)
-	cfg.HttpServer.Handler = mux
 
+	cfg.HttpServer.Handler = mux
 	return pprofServer{
 		httpServer: cfg.HttpServer,
 		isUp:       &atomic.Bool{},
@@ -40,6 +42,9 @@ func newpprofServer(cfg pprofServerConfig) (pprofServer, error) {
 }
 
 func (ppfs *pprofServer) start() error {
+	ppfs.mu.Lock()
+	defer ppfs.mu.Unlock()
+
 	if ppfs.isRunning() {
 		return errors.New("server already up")
 	}
@@ -47,14 +52,22 @@ func (ppfs *pprofServer) start() error {
 	ppfs.isUp.Store(true)
 	defer ppfs.isUp.Store(false)
 
-	return ppfs.httpServer.ListenAndServe()
+	err := ppfs.httpServer.ListenAndServe()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (ppfs *pprofServer) stop() error {
+	ppfs.mu.Lock()
+	defer ppfs.mu.Unlock()
+
 	if !ppfs.isRunning() {
 		return errors.New("server is down")
 	}
 
+	ppfs.isUp.Store(false)
 	return ppfs.httpServer.Close()
 }
 
