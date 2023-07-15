@@ -25,9 +25,9 @@ type ServerConfig struct {
 	// HttpServer is the http server whose configuration is
 	// used to start pprof
 	HttpServer *http.Server
-	// EndpointPrefix is used in order to extend the endpoint beyond /debug/pprof/
-	// example if EndpointPrefix is "/India/server1/"
-	// the final endpoint will begin with "/India/server1/debug/pprof"
+	// EndpointPrefix is used to extend the path to access pprof
+	// by default it is served at /debug/pprof/...
+	// if given as "/extra" endpoint it extended to /extra/debug/pprof/...
 	EndpointPrefix string
 }
 
