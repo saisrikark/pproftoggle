@@ -11,6 +11,14 @@ import (
 	"github.com/saisrikark/pproftoggle/rules"
 )
 
+// To use this example
+// ensure dependencies are present
+// run the main.go file from examples/toggler
+// use "go run main.go"
+// change the value of enablepprof in example.yaml
+// to anything else and the server will shutdown
+// toggle it again and it will start
+
 func main() {
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
