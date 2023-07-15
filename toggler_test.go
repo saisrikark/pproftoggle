@@ -58,7 +58,8 @@ func TestServe(t *testing.T) {
 				}
 			}
 			// expecting a toggle after the poll interval elapses
-			time.Sleep(2 * pollInterval)
+			// waiting for slightly longer to avoid race conditions
+			time.Sleep(2*pollInterval + time.Millisecond*200)
 
 			// check if IsUp is showing expected status
 			if shouldBeRunning && !toggler.IsUp(ctx) {
