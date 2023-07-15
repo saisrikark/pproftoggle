@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -12,6 +12,8 @@ import (
 )
 
 func main() {
+	var wg sync.WaitGroup
+	ctx, cancel := context.WithCancel(context.Background())
 	toggler, err := pproftoggle.NewToggler(
 		pproftoggle.Config{
 			PollInterval: time.Second * 1,
@@ -31,17 +33,16 @@ func main() {
 			},
 		})
 	if err != nil {
-		fmt.Println(err)
+		log.Println("received error while trying to create new toggler", err)
+		return
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-
-	var wg sync.WaitGroup
 	wg.Add(1)
-
 	go func() {
 		defer wg.Done()
-		toggler.Serve(ctx)
+		if err := toggler.Serve(ctx); err != nil {
+			log.Println("received error while trying to serve using toggler", err)
+		}
 	}()
 
 	time.Sleep(time.Minute * 10)
