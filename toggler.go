@@ -126,9 +126,9 @@ func (pt *toggler) Serve(ctx context.Context) error {
 				pt.logger.Printf("error while trying to fetch status %s", err.Error())
 				return err
 			}
-			if ok && !pt.IsUp(ctx) {
+			if ok {
 				go start()
-			} else if !ok && pt.IsUp(ctx) {
+			} else {
 				stop()
 			}
 		}

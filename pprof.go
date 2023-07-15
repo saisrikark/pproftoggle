@@ -13,8 +13,9 @@ const (
 )
 
 type pprofServer struct {
-	isUp       *atomic.Bool
-	httpServer *http.Server
+	isUp           *atomic.Bool
+	httpServer     *http.Server
+	userHttpServer *http.Server
 }
 
 type ServerConfig struct {
@@ -22,24 +23,45 @@ type ServerConfig struct {
 	EndpointPrefix string
 }
 
-func NewServer(cfg ServerConfig) (*pprofServer, error) {
-	var prefix = cfg.EndpointPrefix + pprofPrefix
+// newHttpServer copies all values from userHttpServer into one we can use
+func newHttpServer(userHttpServer *http.Server) *http.Server {
+	var prefix = pprofPrefix
 	var mux = http.NewServeMux()
-
-	if cfg.HttpServer == nil {
-		return nil, errors.New("http server not configured")
-	}
 
 	mux.HandleFunc(prefix, pprof.Index)
 	mux.HandleFunc(prefix+"cmdline", pprof.Cmdline)
 	mux.HandleFunc(prefix+"profile", pprof.Profile)
 	mux.HandleFunc(prefix+"symbol", pprof.Symbol)
 	mux.HandleFunc(prefix+"trace", pprof.Trace)
-	cfg.HttpServer.Handler = mux
+
+	svr := &http.Server{
+		Addr:                         userHttpServer.Addr,
+		Handler:                      mux,
+		DisableGeneralOptionsHandler: userHttpServer.DisableGeneralOptionsHandler,
+		TLSConfig:                    userHttpServer.TLSConfig,
+		ReadTimeout:                  userHttpServer.ReadTimeout,
+		WriteTimeout:                 userHttpServer.WriteTimeout,
+		IdleTimeout:                  userHttpServer.IdleTimeout,
+		MaxHeaderBytes:               userHttpServer.MaxHeaderBytes,
+		TLSNextProto:                 userHttpServer.TLSNextProto,
+		ConnState:                    userHttpServer.ConnState,
+		ErrorLog:                     userHttpServer.ErrorLog,
+		BaseContext:                  userHttpServer.BaseContext,
+		ConnContext:                  userHttpServer.ConnContext,
+	}
+
+	return svr
+}
+
+func NewServer(cfg ServerConfig) (*pprofServer, error) {
+
+	if cfg.HttpServer == nil {
+		return nil, errors.New("http server not configured")
+	}
 
 	return &pprofServer{
-		httpServer: cfg.HttpServer,
-		isUp:       &atomic.Bool{},
+		userHttpServer: cfg.HttpServer,
+		isUp:           &atomic.Bool{},
 	}, nil
 }
 
@@ -54,6 +76,7 @@ func (ppfs *pprofServer) Listen(ctx context.Context) error {
 	defer ppfs.isUp.Store(false)
 
 	go func() {
+		ppfs.httpServer = newHttpServer(ppfs.userHttpServer)
 		if err := ppfs.httpServer.ListenAndServe(); err != nil {
 			errs <- err
 		}
@@ -70,11 +93,11 @@ func (ppfs *pprofServer) Listen(ctx context.Context) error {
 }
 
 func (ppfs *pprofServer) Shutdown() error {
-	if !ppfs.IsRunning() {
+	if !ppfs.IsRunning() || ppfs.httpServer == nil {
 		return nil
 	}
 
-	return ppfs.httpServer.Close()
+	return ppfs.httpServer.Shutdown(context.Background())
 }
 
 func (ppfs *pprofServer) IsRunning() bool {
