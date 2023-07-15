@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"sync/atomic"
 	"time"
 
 	"log"
@@ -77,9 +76,6 @@ func NewToggler(cfg Config) (*toggler, error) {
 		return nil, err
 	}
 
-	canToggle := &atomic.Bool{}
-	canToggle.Swap(true)
-
 	return &toggler{
 		pollInterval: cfg.PollInterval,
 		ppfs:         pprofServer,
@@ -90,7 +86,7 @@ func NewToggler(cfg Config) (*toggler, error) {
 
 // Serve continuously polls for the given conditions
 // and starts the pprof server if conditions match
-// this is a blocking operation that return when ctx is cancelled
+// this is a blocking operation that returns when ctx is cancelled
 // or when an error is hit
 func (pt *toggler) Serve(ctx context.Context) error {
 	errs := make(chan error, 1)
@@ -105,7 +101,7 @@ func (pt *toggler) Serve(ctx context.Context) error {
 
 	stop := func() {
 		pt.logger.Println("stopping pprof server")
-		if err := pt.ppfs.Shutdown(); err != nil {
+		if err := pt.ppfs.Shutdown(ctx); err != nil {
 			errs <- errors.Wrap(err, "unable to stop pprof server")
 		}
 	}

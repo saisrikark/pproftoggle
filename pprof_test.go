@@ -2,8 +2,10 @@ package pproftoggle_test
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/http"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -13,7 +15,7 @@ import (
 )
 
 var (
-	PORT      = "3125"
+	PORT      = "8080"
 	LOCALHOST = "127.0.0.1"
 	BASE_URL  = "http://" + LOCALHOST + ":" + PORT + "/debug/pprof"
 	ENDDPOINT = "/"
@@ -136,7 +138,7 @@ func TestShutdown(t *testing.T) {
 			t.Logf("received a respose from the endpoint truncated resp\n[%s]", resp[0:30])
 		}
 
-		ppfs.Shutdown()
+		ppfs.Shutdown(context.Background())
 
 		if err := requests.URL(ENDDPOINT).BaseURL(BASE_URL).ToString(&resp).Fetch(context.Background()); err == nil {
 			t.Errorf("received a respose from the endpoint truncated resp\n[%s]", resp[0:30])
@@ -186,7 +188,7 @@ func TestIsRunning(t *testing.T) {
 		}
 	}
 
-	if err := ppfs.Shutdown(); err != nil {
+	if err := ppfs.Shutdown(context.Background()); err != nil {
 		t.Errorf("unexpected error while shutting down err:[%s]", err.Error())
 	}
 
@@ -196,6 +198,49 @@ func TestIsRunning(t *testing.T) {
 
 	if isPortUsed(PORT) {
 		t.Errorf("port [%s] is still being used after shuttiing down", PORT)
+	}
+}
+
+func BenchmarkToggle(b *testing.B) {
+	b.SetParallelism(1)
+
+	cleanUp := func() {
+		runtime.GC()
+	}
+	defer b.Cleanup(cleanUp)
+
+	ppfs, err := pproftoggle.NewServer(pproftoggle.ServerConfig{
+		HttpServer: &http.Server{Addr: ":" + PORT}})
+	if err != nil {
+		b.Errorf(err.Error())
+	}
+
+	doTest := func(b *testing.B) {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*10)
+		defer cancel()
+
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+			ppfs.Listen(ctx)
+		}()
+
+		for {
+			if ppfs.IsRunning() {
+				break
+			}
+		}
+
+		if err := ppfs.Shutdown(ctx); err != nil {
+			b.Skipf(err.Error())
+		}
+		wg.Wait()
+	}
+
+	for i := 0; i < 200; i++ {
+		b.Run(fmt.Sprintf("%d", i), doTest)
 	}
 }
 

@@ -1,4 +1,4 @@
-.PHONY: fmt vet test tidy vendor
+.PHONY: fmt vet test bench tidy vendor
 
 GOCMD := go
 GOMOD := $(GOCMD) mod
@@ -16,6 +16,9 @@ vet:
 
 test:
 	$(GOTEST) ./...
+
+bench:
+	$(GOTEST) -bench=. -benchmem -run BenchmarkToggle
 
 tidy:
 	$(GOTIDY)

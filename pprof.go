@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/pprof"
+	"sync"
 	"sync/atomic"
 )
 
@@ -17,6 +18,7 @@ type pprofServer struct {
 	isUp           *atomic.Bool
 	httpServer     *http.Server
 	userHttpServer *http.Server
+	closeLock      *sync.Mutex
 }
 
 type ServerConfig struct {
@@ -68,6 +70,7 @@ func NewServer(cfg ServerConfig) (*pprofServer, error) {
 		prefix:         cfg.EndpointPrefix,
 		isUp:           &atomic.Bool{},
 		userHttpServer: cfg.HttpServer,
+		closeLock:      &sync.Mutex{},
 	}, nil
 }
 
@@ -78,10 +81,11 @@ func (ppfs *pprofServer) Listen(ctx context.Context) error {
 		return nil
 	}
 
-	ppfs.isUp.Store(true)
-	defer ppfs.isUp.Store(false)
-
 	go func() {
+		ppfs.isUp.Store(true)
+		defer ppfs.isUp.Store(false)
+		ppfs.closeLock.Lock()
+		defer ppfs.closeLock.Unlock()
 		ppfs.httpServer = newHttpServer(ppfs.prefix, ppfs.userHttpServer)
 		if err := ppfs.httpServer.ListenAndServe(); err != nil {
 			errs <- err
@@ -91,19 +95,29 @@ func (ppfs *pprofServer) Listen(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return ppfs.httpServer.Close()
+			if ppfs.httpServer != nil {
+				return ppfs.httpServer.Shutdown(ctx)
+			}
+			return nil
 		case err := <-errs:
 			return err
 		}
 	}
 }
 
-func (ppfs *pprofServer) Shutdown() error {
+func (ppfs *pprofServer) Shutdown(ctx context.Context) error {
 	if !ppfs.IsRunning() || ppfs.httpServer == nil {
 		return nil
 	}
 
-	return ppfs.httpServer.Shutdown(context.Background())
+	if err := ppfs.httpServer.Shutdown(ctx); err != nil {
+		return err
+	}
+
+	ppfs.closeLock.Lock()
+	defer ppfs.closeLock.Unlock()
+
+	return nil
 }
 
 func (ppfs *pprofServer) IsRunning() bool {
