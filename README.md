@@ -35,16 +35,16 @@ Toggle using
 ## Usage
 
 To use <br>
-'''
+```
 go get -d github.com/saisrikark/pproftoggle
-'''
+```
 
 Below is an example using a simple yaml rule. <br>
 It will read a yaml file at the specified path and check if the key value pair match. <br>
 On a match pprof will be server via http. <br>
 When unmatched pprof will no longer be served. <br>
 
-'''go
+```go
 package main
 
 import (
@@ -92,15 +92,15 @@ func main() {
 	cancel()
 	wg.Wait()
 }
-'''
+```
 
-'''
-Attempt to call the server 
+Attempt to call the server. <br>
+```
 curl http://localhost:8080/debug/pprof/heap
-'''
+```
 
-Refer to the **examples** folder for better examples.
-**NOTE**: to run examples main.go must be run from the directory it is present in.
+Refer to the **examples** folder for better examples. <br>
+**NOTE**: to run examples main.go must be run from the directory it is present in. <br>
 
 ## Contributing
 
