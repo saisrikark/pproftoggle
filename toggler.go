@@ -34,9 +34,10 @@ type Config struct {
 	// we decide whether to start or stop the pprof server
 	// executed in same order specified
 	Rules []Rule
-	// ErrLogger is used to print error log statements
-	// is not specified log.Logger is used
-	ErrLogger *log.Logger
+	// Logger is used to print error log statements
+	// also used to display the state when a toggle takes place
+	// if not specified log.Logger is used
+	Logger *log.Logger
 	// HttpServer is the server used to host pprof
 	// any handler assigned is overridden
 	// panics is nil
@@ -66,8 +67,8 @@ func NewToggler(cfg Config) (*toggler, error) {
 		cfg.PollInterval = time.Second
 	}
 
-	if cfg.ErrLogger == nil {
-		cfg.ErrLogger = log.New(os.Stdout, "pproftoggle ", 0)
+	if cfg.Logger == nil {
+		cfg.Logger = log.New(os.Stdout, "|||pproftoggle|||", 0)
 	}
 
 	pprofServer, err := NewServer(ServerConfig{
@@ -85,7 +86,7 @@ func NewToggler(cfg Config) (*toggler, error) {
 		pollInterval: cfg.PollInterval,
 		ppfs:         pprofServer,
 		rules:        cfg.Rules,
-		logger:       cfg.ErrLogger,
+		logger:       cfg.Logger,
 		canToggle:    canToggle,
 		shouldBeUp:   &atomic.Bool{},
 		toggleChan:   make(chan bool, 1),
@@ -95,7 +96,7 @@ func NewToggler(cfg Config) (*toggler, error) {
 // Serve continuously polls for the given conditions
 // and starts the pprof server if conditions match
 // this is a blocking operation that return when ctx is cancelled
-// or when an error is hit
+// or when an error related to the http server being used it hit
 func (pt *toggler) Serve(ctx context.Context) error {
 	errs := make(chan error, 1)
 	tc := time.NewTicker(pt.pollInterval)
@@ -126,9 +127,9 @@ func (pt *toggler) Serve(ctx context.Context) error {
 				pt.logger.Printf("error while trying to fetch status %s", err.Error())
 				return err
 			}
-			if ok {
+			if ok && !pt.IsUp(ctx) {
 				go start()
-			} else {
+			} else if !ok && pt.IsUp(ctx) {
 				stop()
 			}
 		}
@@ -148,6 +149,7 @@ func (pt *toggler) hasMatched() (bool, error) {
 	for _, rule := range pt.rules {
 		matches, err := rule.Matches()
 		if err != nil {
+			pt.logger.Println("while trying rule", rule.Name(), "err", err)
 			return false, err
 		} else if matches {
 			st.hasMatched = true

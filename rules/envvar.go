@@ -12,7 +12,7 @@ type EnvVarRule struct {
 
 func (evr EnvVarRule) Name() string {
 	return fmt.Sprintf(
-		"environment variable based rule on key:%s and value:%s",
+		"envvar key:%s and value:%s",
 		evr.Key,
 		evr.Value)
 }

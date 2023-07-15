@@ -15,7 +15,7 @@ type SimpleYamlRule struct {
 
 func (yr SimpleYamlRule) Name() string {
 	return fmt.Sprintf(
-		"yaml rule based on key:%s value:%s", yr.Key, yr.Value)
+		"yaml key:%s value:%s path%s", yr.Key, yr.Value, yr.Path)
 }
 
 func (yr SimpleYamlRule) Matches() (bool, error) {
