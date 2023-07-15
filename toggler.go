@@ -137,6 +137,7 @@ func (pt *toggler) Serve(ctx context.Context) error {
 }
 
 // IsUp returns the running status of the server hosting pprof endpoints
+// this can be used in a monitor to determine the state of the server
 func (pt *toggler) IsUp(ctx context.Context) bool {
 	return pt.ppfs.IsRunning()
 }
