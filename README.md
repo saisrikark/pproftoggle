@@ -1,4 +1,4 @@
-# pproftoggle - in development
+# pproftoggle
 run pprof without restarting your application
 
 ## Table of Contents
@@ -14,15 +14,16 @@ run pprof without restarting your application
 
 [pprof](https://github.com/google/pprof) is a tool to view resources used by go applications. <br>
 To use it we must host a http server. <br><br>
-Often to switch it on, users are forced to restart their application.
+Often to switch it on, users are forced to restart their application. <br>
 Resource consumption scenarios are hard to replicate due to this restart. <br>
 We would prefer not to host an extra server if not required. <br><br>
-This package helps us to toggle the pprof server without restarting. <br>
+This package helps us toggle the pprof server without restarting. <br>
 Some preexisting rules are provided which are implemented behind interface. <br>
 
 ## Features
 
-Provide your own '''*http.Server''' we will use it to host a http server while overwritting the handler <br>
+Provide your own '''*http.Server''' <br>
+We will use it to host a http server while overwritting the handler <br>
 
 Toggle using
 - Environment Variable
@@ -43,6 +44,7 @@ Below is an example using a simple yaml rule. <br>
 It will read a yaml file at the specified path and check if the key value pair match. <br>
 On a match pprof will be server via http. <br>
 When unmatched pprof will no longer be served. <br>
+Ensure the yaml file is created beforehand. <br>
 
 ```go
 package main
@@ -100,7 +102,7 @@ curl http://localhost:8080/debug/pprof/heap
 ```
 
 Refer to the **examples** folder for better examples. <br>
-**NOTE**: to run examples main.go must be run from the directory it is present in. <br>
+**NOTE**: main.go under examples must be run from the directory it is present in. <br>
 
 ## Contributing
 
