@@ -48,9 +48,6 @@ type status struct {
 
 // NewToggler returns an instance of the toggler
 // used to perform pprof toggle operations
-// pollInterval is the wait time between
-// the end of a match and the beggining of a new one
-// paincs if no rules are configured
 func NewToggler(cfg Config) (*toggler, error) {
 	if cfg.Rules == nil || len(cfg.Rules) == 0 {
 		panic("no rules configured")
@@ -85,7 +82,8 @@ func NewToggler(cfg Config) (*toggler, error) {
 }
 
 // Serve continuously polls for the given conditions
-// and starts the pprof server if conditions match
+// and starts the pprof server if any of conditions match
+// stops the pprof server if none of the conditions match
 // this is a blocking operation that returns when ctx is cancelled
 // or when an error is hit
 func (pt *toggler) Serve(ctx context.Context) error {

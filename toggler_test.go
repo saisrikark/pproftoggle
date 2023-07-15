@@ -14,14 +14,14 @@ import (
 )
 
 var (
+	pollInterval            = time.Second
+	acceptablePollDeviation = time.Millisecond * 200
 	localhost               = "127.0.0.1"
 	port                    = "8080"
 	baseURL                 = "http://" + localhost + ":" + port + "/debug/pprof"
 	endpoint                = "/"
 	envKey                  = "ENABLE_PPROF"
 	envVal                  = "true"
-	pollInterval            = time.Second
-	acceptablePollDeviation = time.Millisecond * 200
 )
 
 func TestServe(t *testing.T) {
