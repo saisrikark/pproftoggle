@@ -113,6 +113,9 @@ func (pt *toggler) Serve(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
+			if pt.IsUp(ctx) {
+				stop()
+			}
 			return nil
 		case err := <-errs:
 			if pt.IsUp(ctx) {
