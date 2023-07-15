@@ -22,7 +22,7 @@ Some preexisting rules are provided which are implemented behind interface. <br>
 
 ## Features
 
-Provide your own '''*http.Server''' <br>
+Provide your own ```*http.Server``` <br>
 We will use it to host a http server while overwritting the handler <br>
 
 Toggle using
@@ -33,12 +33,14 @@ Toggle using
 - Implement your own rule
     - Rules are behind an interface so you can try your own implementation.
 
-## Usage
-
-To use <br>
+## Installation
+To use this package run the below commands
 ```
 go get -d github.com/saisrikark/pproftoggle
+go mod vendor
 ```
+
+## Usage
 
 Below is an example using a simple yaml rule. <br>
 It will read a yaml file at the specified path and check if the key value pair match. <br>
