@@ -32,7 +32,7 @@ func TestServe(t *testing.T) {
 		pproftoggle.Config{
 			PollInterval: pollInterval,
 			HttpServer: &http.Server{
-				Addr: ":8080",
+				Addr: ":" + port,
 			},
 			Rules: []pproftoggle.Rule{
 				rules.EnvVarRule{
