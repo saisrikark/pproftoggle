@@ -2,6 +2,7 @@ package pproftoggle
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"sync/atomic"
@@ -11,16 +12,6 @@ import (
 
 	"github.com/pkg/errors"
 )
-
-type toggler struct {
-	pollInterval time.Duration
-	ppfs         *pprofServer
-	rules        []Rule
-	logger       *log.Logger
-	canToggle    *atomic.Bool
-	shouldBeUp   *atomic.Bool
-	toggleChan   chan (bool)
-}
 
 type Config struct {
 	// EndpointPrefix is used to extend the path to access pprof
@@ -42,6 +33,13 @@ type Config struct {
 	// any handler assigned is overridden
 	// panics is nil
 	HttpServer *http.Server
+}
+
+type toggler struct {
+	pollInterval time.Duration
+	ppfs         *pprofServer
+	rules        []Rule
+	logger       *log.Logger
 }
 
 type status struct {
@@ -87,16 +85,13 @@ func NewToggler(cfg Config) (*toggler, error) {
 		ppfs:         pprofServer,
 		rules:        cfg.Rules,
 		logger:       cfg.Logger,
-		canToggle:    canToggle,
-		shouldBeUp:   &atomic.Bool{},
-		toggleChan:   make(chan bool, 1),
 	}, nil
 }
 
 // Serve continuously polls for the given conditions
 // and starts the pprof server if conditions match
 // this is a blocking operation that return when ctx is cancelled
-// or when an error related to the http server being used it hit
+// or when an error is hit
 func (pt *toggler) Serve(ctx context.Context) error {
 	errs := make(chan error, 1)
 	tc := time.NewTicker(pt.pollInterval)
@@ -120,12 +115,15 @@ func (pt *toggler) Serve(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case err := <-errs:
+			if pt.IsUp(ctx) {
+				stop()
+			}
 			return err
 		case <-tc.C:
 			ok, err := pt.hasMatched()
 			if err != nil {
 				pt.logger.Printf("error while trying to fetch status %s", err.Error())
-				return err
+				errs <- err
 			}
 			if ok && !pt.IsUp(ctx) {
 				go start()
@@ -150,8 +148,9 @@ func (pt *toggler) hasMatched() (bool, error) {
 	for _, rule := range pt.rules {
 		matches, err := rule.Matches()
 		if err != nil {
-			pt.logger.Println("while trying rule", rule.Name(), "err", err)
-			return false, err
+			pt.logger.Println()
+			return false, fmt.Errorf(
+				"error trying rule: [%s] err: [%s]", rule.Name(), err.Error())
 		} else if matches {
 			st.hasMatched = true
 			st.rulesMatched = append(st.rulesMatched, rule)
