@@ -13,13 +13,20 @@ import (
 	"github.com/saisrikark/pproftoggle/rules"
 )
 
+var (
+	localhost               = "127.0.0.1"
+	port                    = "8080"
+	baseURL                 = "http://" + localhost + ":" + port + "/debug/pprof"
+	endpoint                = "/"
+	envKey                  = "ENABLE_PPROF"
+	envVal                  = "true"
+	pollInterval            = time.Second
+	acceptablePollDeviation = time.Millisecond * 200
+)
+
 func TestServe(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	envKey := "ENABLE_PPROF"
-	envVal := "true"
-	pollInterval := time.Second
 
 	toggler, err := pproftoggle.NewToggler(
 		pproftoggle.Config{
@@ -57,9 +64,10 @@ func TestServe(t *testing.T) {
 					t.Errorf("%s", err.Error())
 				}
 			}
+
 			// expecting a toggle after the poll interval elapses
 			// waiting for slightly longer to avoid race conditions
-			time.Sleep(2*pollInterval + time.Millisecond*200)
+			time.Sleep(pollInterval + acceptablePollDeviation)
 
 			// check if IsUp is showing expected status
 			if shouldBeRunning && !toggler.IsUp(ctx) {
@@ -68,7 +76,7 @@ func TestServe(t *testing.T) {
 				t.Error("running when it shouldn't be")
 			}
 
-			if err := requests.URL(ENDDPOINT).BaseURL(BASE_URL).Fetch(ctx); err != nil && shouldBeRunning {
+			if err := requests.URL(endpoint).BaseURL(baseURL).Fetch(ctx); err != nil && shouldBeRunning {
 				t.Errorf("%s", err.Error())
 			} else if err == nil && !shouldBeRunning {
 				t.Error("unexpected response")
