@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/saisrikark/pproftoggle"
+	"github.com/saisrikark/pproftoggle/rules"
 )
 
 func TestServe(t *testing.T) {
@@ -17,7 +18,7 @@ func TestServe(t *testing.T) {
 				Addr: ":8080",
 			},
 			Rules: []pproftoggle.Rule{
-				pproftoggle.EnvVarRule{
+				rules.EnvVarRule{
 					Key:   "abcd",
 					Value: "efgh",
 				},

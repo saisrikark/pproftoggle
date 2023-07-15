@@ -1,4 +1,4 @@
-package pproftoggle
+package rules
 
 import (
 	"fmt"
