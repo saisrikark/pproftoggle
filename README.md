@@ -13,9 +13,16 @@ run pprof without restarting your application
 ## Description
 
 [pprof](https://github.com/google/pprof) is a tool to view resources used by go applications. <br>
-pproftoggle provides ways to toggle the profiling without causing a restart to the application. <br>
+To use it we must host a http server. <br><br>
+Often to switch it on, users are forced to restart their application.
+Resource consumption scenarioes are hard to replicate due to this restart. <br>
+In general we would prefer not to host an extra server if not required. <br><br>
+This package helps us to toggle on and off the pprof server without restarting. <br>
+Some preexisting rules are provided which are implemented as part of an interface. <br>
 
 ## Features
+
+Toggle pprof <br>
 
 Toggle using
 - Environment Variable

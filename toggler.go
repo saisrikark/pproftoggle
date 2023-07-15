@@ -100,7 +100,7 @@ func (pt *toggler) Serve(ctx context.Context) error {
 	}
 
 	stop := func() {
-		pt.logger.Println("stopping pprof server")
+		pt.logger.Println("shutting down pprof server")
 		if err := pt.ppfs.Shutdown(ctx); err != nil {
 			errs <- errors.Wrap(err, "unable to stop pprof server")
 		}
