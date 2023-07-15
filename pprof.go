@@ -13,19 +13,25 @@ const (
 )
 
 type pprofServer struct {
+	prefix         string
 	isUp           *atomic.Bool
 	httpServer     *http.Server
 	userHttpServer *http.Server
 }
 
 type ServerConfig struct {
-	HttpServer     *http.Server
+	// HttpServer is the http server whose configuration is
+	// used to start pprof
+	HttpServer *http.Server
+	// EndpointPrefix is used in order to extend the endpoint beyond /debug/pprof/
+	// example if EndpointPrefix is "/India/server1/"
+	// the final endpoint will begin with "/India/server1/debug/pprof"
 	EndpointPrefix string
 }
 
 // newHttpServer copies all values from userHttpServer into one we can use
-func newHttpServer(userHttpServer *http.Server) *http.Server {
-	var prefix = pprofPrefix
+func newHttpServer(prefix string, userHttpServer *http.Server) *http.Server {
+	prefix = prefix + pprofPrefix
 	var mux = http.NewServeMux()
 
 	mux.HandleFunc(prefix, pprof.Index)
@@ -54,14 +60,14 @@ func newHttpServer(userHttpServer *http.Server) *http.Server {
 }
 
 func NewServer(cfg ServerConfig) (*pprofServer, error) {
-
 	if cfg.HttpServer == nil {
 		return nil, errors.New("http server not configured")
 	}
 
 	return &pprofServer{
-		userHttpServer: cfg.HttpServer,
+		prefix:         cfg.EndpointPrefix,
 		isUp:           &atomic.Bool{},
+		userHttpServer: cfg.HttpServer,
 	}, nil
 }
 
@@ -76,7 +82,7 @@ func (ppfs *pprofServer) Listen(ctx context.Context) error {
 	defer ppfs.isUp.Store(false)
 
 	go func() {
-		ppfs.httpServer = newHttpServer(ppfs.userHttpServer)
+		ppfs.httpServer = newHttpServer(ppfs.prefix, ppfs.userHttpServer)
 		if err := ppfs.httpServer.ListenAndServe(); err != nil {
 			errs <- err
 		}
