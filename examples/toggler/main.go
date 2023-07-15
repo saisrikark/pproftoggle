@@ -44,7 +44,6 @@ func main() {
 			log.Println("received error while trying to serve using toggler", err)
 		}
 	}()
-
 	time.Sleep(time.Minute * 10)
 
 	cancel()
