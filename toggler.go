@@ -120,7 +120,7 @@ func (pt *toggler) Serve(ctx context.Context) error {
 			ok, err := pt.hasMatched()
 			if err != nil {
 				pt.logger.Printf("error while trying to fetch status %s", err.Error())
-				errs <- err
+				continue
 			}
 			if ok && !pt.IsUp(ctx) {
 				go start()
